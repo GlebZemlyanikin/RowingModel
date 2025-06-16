@@ -11,3 +11,7 @@ services:
             sync: false
           - key: PORT
             value: 3000
+      deployPolicy:
+          maxConcurrentDeploys: 1
+          autoDeploy: true
+          waitForDeploy: true
