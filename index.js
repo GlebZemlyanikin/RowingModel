@@ -55,7 +55,31 @@ if (!process.env.TELEGRAM_BOT_TOKEN) {
 }
 
 logger.info("Creating bot instance...")
-const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true })
+const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, {
+    polling: {
+        interval: 300,
+        autoStart: true,
+        params: {
+            timeout: 10,
+        },
+    },
+})
+
+// Error handling for polling
+bot.on("polling_error", (error) => {
+    if (error.code === "ETELEGRAM" && error.response.statusCode === 409) {
+        logger.warn("Polling conflict detected. Restarting polling...")
+        setTimeout(() => {
+            bot.stopPolling()
+            setTimeout(() => {
+                bot.startPolling()
+            }, 1000)
+        }, 1000)
+    } else {
+        logger.error("Polling error:", error)
+    }
+})
+
 logger.info("Bot instance created")
 
 // User states storage
@@ -1153,9 +1177,4 @@ bot.on("message", async (msg) => {
             }
             break
     }
-})
-
-// Error handling
-bot.on("polling_error", (error) => {
-    logger.error("Polling error:", error)
 })
