@@ -65,7 +65,7 @@ const RESTART_DELAY = 2000 // 2 seconds between stop and start
 
 async function startPolling() {
     if (isPolling) {
-        logger.warn("Polling is already running")
+        logger.info("Polling is already running, skipping start")
         return
     }
 
@@ -83,7 +83,7 @@ async function startPolling() {
 
 async function stopPolling() {
     if (!isPolling) {
-        logger.warn("Polling is not running")
+        logger.info("Polling is not running, skipping stop")
         return
     }
 
@@ -162,18 +162,21 @@ bot.on("polling_success", () => {
         logger.info("Polling recovered successfully")
         retryCount = 0
     }
-})
-
-// Initialize bot
-;(async () => {
-    try {
-        await startPolling()
-        logger.info("Bot initialized successfully")
-    } catch (error) {
-        logger.error(`Failed to initialize bot: ${error.message}`)
-        process.exit(1)
+})(
+    // Initialize bot
+    async () => {
+        try {
+            // Ensure polling is stopped before starting
+            await stopPolling()
+            // Start polling
+            await startPolling()
+            logger.info("Bot initialized successfully")
+        } catch (error) {
+            logger.error(`Failed to initialize bot: ${error.message}`)
+            process.exit(1)
+        }
     }
-})()
+)()
 
 logger.info("Bot instance created")
 
