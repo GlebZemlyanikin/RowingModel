@@ -9,24 +9,7 @@ const fs = require("fs")
 const ExcelJS = require("exceljs")
 const path = require("path")
 
-// Create Express app
-const app = express()
-const port = process.env.PORT || 3000
-
-// Basic route for health check
-app.get("/", (req, res) => {
-    res.send("Bot is running!")
-})
-
-// Start web server
-app.listen(port, () => {
-    logger.info(`Web server is running on port ${port}`)
-})
-
-// User sessions storage
-const userSessions = new Map()
-
-// Configure logger
+// Configure logger first
 const logger = winston.createLogger({
     level: "info",
     format: winston.format.combine(
@@ -48,11 +31,41 @@ if (process.env.NODE_ENV !== "production") {
     )
 }
 
+// Create Express app
+const app = express()
+const port = process.env.PORT || 3000
+
+// Basic route for health check
+app.get("/", (req, res) => {
+    res.send("Bot is running!")
+})
+
+// Start web server
+app.listen(port, () => {
+    logger.info(`Web server is running on port ${port}`)
+})
+
+// User sessions storage
+const userSessions = new Map()
+
 // Create a bot instance
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true })
 
 // User states storage
 const userStates = new Map()
+
+// Create necessary directories
+const dirs = ["sessions", "backups"]
+dirs.forEach((dir) => {
+    if (!fs.existsSync(dir)) {
+        try {
+            fs.mkdirSync(dir, { recursive: true })
+            logger.info(`Created directory: ${dir}`)
+        } catch (error) {
+            logger.error(`Error creating directory ${dir}: ${error.message}`)
+        }
+    }
+})
 
 // Age categories for different models
 const worldAgeCategories = [
@@ -261,6 +274,7 @@ async function createExcelFile(chatId) {
         const cacheKey = `excel_${chatId}`
         const cachedResult = getCache(cacheKey)
         if (cachedResult) {
+            logger.info(`Using cached Excel file for chatId ${chatId}`)
             return cachedResult
         }
 
@@ -275,12 +289,15 @@ async function createExcelFile(chatId) {
         )
 
         const workbook = new ExcelJS.Workbook()
+        logger.info("Created new workbook")
 
         // Main results worksheet
         const worksheet = workbook.addWorksheet("Результаты")
+        logger.info("Added main worksheet")
 
         // Statistics worksheet
         const statsWorksheet = workbook.addWorksheet("Статистика")
+        logger.info("Added statistics worksheet")
 
         // Group results by name
         const groupedResults = {}
@@ -300,6 +317,9 @@ async function createExcelFile(chatId) {
                 parseFloat(result.modelPercentage)
             )
         })
+        logger.info(
+            `Grouped results for ${Object.keys(groupedResults).length} athletes`
+        )
 
         // Add headers to main worksheet
         const headers = ["Имя", "Дистанция", "Класс", "Возраст"]
@@ -313,6 +333,7 @@ async function createExcelFile(chatId) {
         headers.push("Среднее время", "Средняя модель")
 
         worksheet.addRow(headers)
+        logger.info("Added headers to main worksheet")
 
         // Style header row
         worksheet.getRow(1).font = { bold: true }
@@ -356,6 +377,7 @@ async function createExcelFile(chatId) {
 
             worksheet.addRow(rowData)
         })
+        logger.info("Added data rows to main worksheet")
 
         // Add statistics to stats worksheet
         statsWorksheet.addRow(["Общая статистика"])
@@ -378,6 +400,7 @@ async function createExcelFile(chatId) {
             "Средний процент от модели по команде",
             `${teamAvgModel}%`,
         ])
+        logger.info("Added statistics to stats worksheet")
 
         // Set column widths
         worksheet.columns.forEach((column) => {
@@ -390,8 +413,9 @@ async function createExcelFile(chatId) {
         // Save Excel file with absolute path
         const filename = `results_${session.username}_${session.chatId}.xlsx`
         const filePath = path.resolve(filename)
-        await workbook.xlsx.writeFile(filePath)
+        logger.info(`Attempting to save Excel file to: ${filePath}`)
 
+        await workbook.xlsx.writeFile(filePath)
         logger.info(`Excel file created successfully: ${filePath}`)
 
         const result = { excelFile: filePath }
@@ -399,6 +423,7 @@ async function createExcelFile(chatId) {
         return result
     } catch (error) {
         logger.error(`Error creating Excel file: ${error.message}`, error)
+        logger.error(`Error stack: ${error.stack}`)
         throw error
     }
 }
@@ -455,19 +480,9 @@ function avg(arr) {
     }
 }
 
-// Create sessions directory if it doesn't exist
-if (!fs.existsSync("sessions")) {
-    fs.mkdirSync("sessions")
-}
-
 // Backup configuration
 const BACKUP_DIR = "backups"
 const BACKUP_INTERVAL = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
-
-// Create backup directory if it doesn't exist
-if (!fs.existsSync(BACKUP_DIR)) {
-    fs.mkdirSync(BACKUP_DIR)
-}
 
 // Backup functions
 async function createBackup() {
