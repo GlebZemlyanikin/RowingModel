@@ -9,6 +9,8 @@ const fs = require("fs")
 const ExcelJS = require("exceljs")
 const path = require("path")
 
+console.log("Starting bot initialization...")
+
 // Configure logger first
 const logger = winston.createLogger({
     level: "info",
@@ -19,17 +21,13 @@ const logger = winston.createLogger({
     transports: [
         new winston.transports.File({ filename: "error.log", level: "error" }),
         new winston.transports.File({ filename: "combined.log" }),
+        new winston.transports.Console({
+            format: winston.format.simple(),
+        }),
     ],
 })
 
-// Add console transport in development
-if (process.env.NODE_ENV !== "production") {
-    logger.add(
-        new winston.transports.Console({
-            format: winston.format.simple(),
-        })
-    )
-}
+logger.info("Logger configured")
 
 // Create Express app
 const app = express()
@@ -37,6 +35,7 @@ const port = process.env.PORT || 3000
 
 // Basic route for health check
 app.get("/", (req, res) => {
+    logger.info("Health check endpoint called")
     res.send("Bot is running!")
 })
 
@@ -47,12 +46,21 @@ app.listen(port, () => {
 
 // User sessions storage
 const userSessions = new Map()
+logger.info("User sessions storage initialized")
 
 // Create a bot instance
+if (!process.env.TELEGRAM_BOT_TOKEN) {
+    logger.error("TELEGRAM_BOT_TOKEN is not set!")
+    process.exit(1)
+}
+
+logger.info("Creating bot instance...")
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true })
+logger.info("Bot instance created")
 
 // User states storage
 const userStates = new Map()
+logger.info("User states storage initialized")
 
 // Create necessary directories
 const dirs = ["sessions", "backups"]
