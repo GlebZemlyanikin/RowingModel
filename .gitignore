@@ -1,0 +1,35 @@
+# Игнорировать всё
+*
+
+# Разрешить только нужные файлы проекта
+!index.js
+!modelTableWORLD.js
+!modelTableRUSSIA.js
+!distanceTable.js
+!package.json
+!package-lock.json
+!README.md
+!.gitignore
+!render.yaml
+
+# Игнорировать все файлы в директориях
+*/
+!*/
+
+# Игнорировать все файлы с определёнными расширениями
+*.log
+*.env
+*.code-workspace
+
+# Игнорировать системные файлы и директории
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+node_modules/
+sessions/
+dist/
+build/
+out/
+backups/
+
