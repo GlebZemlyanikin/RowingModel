@@ -548,6 +548,41 @@ function avg(arr) {
     }
 }
 
+// Save result to session
+async function saveResult(chatId, result) {
+    try {
+        const session = userSessions.get(chatId)
+        if (!session) {
+            throw new Error("Session not found")
+        }
+
+        // Format time for display
+        const formattedTime = formatTime(result.time)
+
+        // Add result to session
+        session.results.push({
+            ...result,
+            time: formattedTime,
+            modelPercentage: result.percentage,
+            timestamp: new Date().toISOString(),
+        })
+
+        logger.info(`Result saved for user ${session.username}:`, {
+            name: result.name,
+            time: formattedTime,
+            percentage: result.percentage,
+        })
+
+        // Save session to file
+        saveSession(chatId)
+
+        return true
+    } catch (error) {
+        logger.error(`Error saving result: ${error.message}`, error)
+        throw error
+    }
+}
+
 // Backup configuration
 const BACKUP_DIR = "backups"
 const BACKUP_INTERVAL = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
