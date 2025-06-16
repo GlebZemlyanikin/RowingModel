@@ -9,3 +9,5 @@ services:
             value: production
           - key: TELEGRAM_BOT_TOKEN
             sync: false
+          - key: PORT
+            value: 3000

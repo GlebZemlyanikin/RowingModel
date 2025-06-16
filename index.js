@@ -1,5 +1,6 @@
 require("dotenv").config()
 const TelegramBot = require("node-telegram-bot-api")
+const express = require("express")
 const { getModelTime } = require("./modelTableWORLD")
 const { getModelTime: getModelTimeRU } = require("./modelTableRUSSIA")
 const { distances, getDistance } = require("./distanceTable")
@@ -7,6 +8,20 @@ const winston = require("winston")
 const fs = require("fs")
 const ExcelJS = require("exceljs")
 const path = require("path")
+
+// Create Express app
+const app = express()
+const port = process.env.PORT || 3000
+
+// Basic route for health check
+app.get("/", (req, res) => {
+    res.send("Bot is running!")
+})
+
+// Start web server
+app.listen(port, () => {
+    logger.info(`Web server is running on port ${port}`)
+})
 
 // User sessions storage
 const userSessions = new Map()
