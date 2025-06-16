@@ -1198,11 +1198,13 @@ bot.on("message", async (msg) => {
                     "Введите время в формате СС.сс или ММ:СС.сс (например, 45.55 или 7:45.55)"
                 )
             } else if (text === getMessage(chatId, "newName")) {
-                const mode = userState.modelType
+                const mode = userState.mode
+                const modelType = userState.modelType
                 userStates.delete(chatId)
                 initUserState(chatId)
                 const newState = userStates.get(chatId)
-                newState.modelType = mode
+                newState.modelType = modelType
+                newState.mode = mode
                 newState.state = STATES.WAITING_NAME
                 bot.sendMessage(chatId, "Введите имя или фамилию:")
             } else if (text === getMessage(chatId, "finishAndGetExcel")) {
@@ -1286,7 +1288,6 @@ bot.on("message", async (msg) => {
 
         case STATES.EDITING_LAST_TIME:
             // Handle time editing similar to WAITING_TIME state
-            // ... existing time validation code ...
             const session = userSessions.get(chatId)
             if (session && session.results.length > 0) {
                 session.results[session.results.length - 1].time = text
