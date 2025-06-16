@@ -65,18 +65,54 @@ const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, {
     },
 })
 
-// Error handling for polling
+// Polling error handling with exponential backoff
+let retryCount = 0
+const MAX_RETRIES = 5
+const BASE_DELAY = 1000 // 1 second
+
 bot.on("polling_error", (error) => {
     if (error.code === "ETELEGRAM" && error.response.statusCode === 409) {
-        logger.warn("Polling conflict detected. Restarting polling...")
-        setTimeout(() => {
-            bot.stopPolling()
+        logger.warn(
+            `Polling conflict detected. Retry attempt ${
+                retryCount + 1
+            }/${MAX_RETRIES}`
+        )
+
+        if (retryCount < MAX_RETRIES) {
+            const delay = BASE_DELAY * Math.pow(2, retryCount) // Exponential backoff
+            retryCount++
+
+            logger.info(`Waiting ${delay}ms before retrying...`)
             setTimeout(() => {
-                bot.startPolling()
-            }, 1000)
-        }, 1000)
+                bot.stopPolling()
+                    .then(() => {
+                        logger.info("Polling stopped successfully")
+                        return bot.startPolling()
+                    })
+                    .then(() => {
+                        logger.info("Polling restarted successfully")
+                    })
+                    .catch((err) => {
+                        logger.error(
+                            `Error during polling restart: ${err.message}`
+                        )
+                    })
+            }, delay)
+        } else {
+            logger.error("Max retry attempts reached. Stopping polling.")
+            bot.stopPolling()
+            process.exit(1) // Exit with error code
+        }
     } else {
         logger.error("Polling error:", error)
+    }
+})
+
+// Reset retry count on successful polling
+bot.on("polling_success", () => {
+    if (retryCount > 0) {
+        logger.info("Polling recovered successfully")
+        retryCount = 0
     }
 })
 
