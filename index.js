@@ -55,10 +55,51 @@ if (!process.env.TELEGRAM_BOT_TOKEN) {
 }
 
 logger.info("Creating bot instance...")
+
+// Polling configuration
+let isPolling = false
+let retryCount = 0
+const MAX_RETRIES = 5
+const BASE_DELAY = 1000 // 1 second
+
+async function startPolling() {
+    if (isPolling) {
+        logger.warn("Polling is already running")
+        return
+    }
+
+    try {
+        isPolling = true
+        await bot.startPolling()
+        logger.info("Polling started successfully")
+        retryCount = 0
+    } catch (error) {
+        logger.error(`Error starting polling: ${error.message}`)
+        isPolling = false
+        throw error
+    }
+}
+
+async function stopPolling() {
+    if (!isPolling) {
+        logger.warn("Polling is not running")
+        return
+    }
+
+    try {
+        await bot.stopPolling()
+        logger.info("Polling stopped successfully")
+        isPolling = false
+    } catch (error) {
+        logger.error(`Error stopping polling: ${error.message}`)
+        throw error
+    }
+}
+
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, {
     polling: {
         interval: 300,
-        autoStart: true,
+        autoStart: false, // We'll start polling manually
         params: {
             timeout: 10,
         },
@@ -66,11 +107,7 @@ const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, {
 })
 
 // Polling error handling with exponential backoff
-let retryCount = 0
-const MAX_RETRIES = 5
-const BASE_DELAY = 1000 // 1 second
-
-bot.on("polling_error", (error) => {
+bot.on("polling_error", async (error) => {
     if (error.code === "ETELEGRAM" && error.response.statusCode === 409) {
         logger.warn(
             `Polling conflict detected. Retry attempt ${
@@ -79,42 +116,50 @@ bot.on("polling_error", (error) => {
         )
 
         if (retryCount < MAX_RETRIES) {
-            const delay = BASE_DELAY * Math.pow(2, retryCount) // Exponential backoff
+            const delay = BASE_DELAY * Math.pow(2, retryCount)
             retryCount++
 
             logger.info(`Waiting ${delay}ms before retrying...`)
-            setTimeout(() => {
-                bot.stopPolling()
-                    .then(() => {
-                        logger.info("Polling stopped successfully")
-                        return bot.startPolling()
-                    })
-                    .then(() => {
-                        logger.info("Polling restarted successfully")
-                    })
-                    .catch((err) => {
-                        logger.error(
-                            `Error during polling restart: ${err.message}`
-                        )
-                    })
-            }, delay)
+
+            try {
+                await stopPolling()
+                await new Promise((resolve) => setTimeout(resolve, delay))
+                await startPolling()
+            } catch (err) {
+                logger.error(`Error during polling restart: ${err.message}`)
+                if (retryCount >= MAX_RETRIES) {
+                    logger.error("Max retry attempts reached. Stopping bot.")
+                    process.exit(1)
+                }
+            }
         } else {
-            logger.error("Max retry attempts reached. Stopping polling.")
-            bot.stopPolling()
-            process.exit(1) // Exit with error code
+            logger.error("Max retry attempts reached. Stopping bot.")
+            await stopPolling()
+            process.exit(1)
         }
     } else {
         logger.error("Polling error:", error)
     }
 })
 
-// Reset retry count on successful polling
+// Start polling when bot is ready
 bot.on("polling_success", () => {
     if (retryCount > 0) {
         logger.info("Polling recovered successfully")
         retryCount = 0
     }
 })
+
+// Initialize bot
+;(async () => {
+    try {
+        await startPolling()
+        logger.info("Bot initialized successfully")
+    } catch (error) {
+        logger.error(`Failed to initialize bot: ${error.message}`)
+        process.exit(1)
+    }
+})()
 
 logger.info("Bot instance created")
 
