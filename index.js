@@ -162,21 +162,24 @@ bot.on("polling_success", () => {
         logger.info("Polling recovered successfully")
         retryCount = 0
     }
-})(
-    // Initialize bot
-    async () => {
-        try {
-            // Ensure polling is stopped before starting
-            await stopPolling()
-            // Start polling
-            await startPolling()
-            logger.info("Bot initialized successfully")
-        } catch (error) {
-            logger.error(`Failed to initialize bot: ${error.message}`)
-            process.exit(1)
-        }
+})
+
+// Initialize bot
+async function initializeBot() {
+    try {
+        // Ensure polling is stopped before starting
+        await stopPolling()
+        // Start polling
+        await startPolling()
+        logger.info("Bot initialized successfully")
+    } catch (error) {
+        logger.error(`Failed to initialize bot: ${error.message}`)
+        process.exit(1)
     }
-)()
+}
+
+// Start the bot
+initializeBot()
 
 logger.info("Bot instance created")
 
