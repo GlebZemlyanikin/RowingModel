@@ -61,6 +61,7 @@ let isPolling = false
 let retryCount = 0
 const MAX_RETRIES = 5
 const BASE_DELAY = 1000 // 1 second
+const RESTART_DELAY = 2000 // 2 seconds between stop and start
 
 async function startPolling() {
     if (isPolling) {
@@ -96,6 +97,18 @@ async function stopPolling() {
     }
 }
 
+async function restartPolling() {
+    try {
+        await stopPolling()
+        // Wait for a moment to ensure all connections are closed
+        await new Promise((resolve) => setTimeout(resolve, RESTART_DELAY))
+        await startPolling()
+    } catch (error) {
+        logger.error(`Error during polling restart: ${error.message}`)
+        throw error
+    }
+}
+
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, {
     polling: {
         interval: 300,
@@ -122,9 +135,10 @@ bot.on("polling_error", async (error) => {
             logger.info(`Waiting ${delay}ms before retrying...`)
 
             try {
-                await stopPolling()
+                // Wait for the initial delay
                 await new Promise((resolve) => setTimeout(resolve, delay))
-                await startPolling()
+                // Then restart polling
+                await restartPolling()
             } catch (err) {
                 logger.error(`Error during polling restart: ${err.message}`)
                 if (retryCount >= MAX_RETRIES) {
@@ -1119,20 +1133,24 @@ bot.on("message", async (msg) => {
                         // Send confirmation
                         bot.sendMessage(chatId, response)
 
-                        // Reset state and show main menu
-                        initUserState(chatId)
+                        // Show next action menu instead of resetting state
+                        userState.state = STATES.WAITING_NEXT_ACTION
                         const keyboard = {
                             reply_markup: {
                                 keyboard: [
-                                    [getMessage(chatId, "worldModel")],
-                                    [getMessage(chatId, "russiaModel")],
+                                    [getMessage(chatId, "enterMoreTime")],
+                                    [getMessage(chatId, "newName")],
+                                    [getMessage(chatId, "finishAndGetExcel")],
+                                    [getMessage(chatId, "editLastTime")],
+                                    [getMessage(chatId, "viewHistory")],
                                 ],
                                 one_time_keyboard: true,
                             },
                         }
+                        addCancelButton(keyboard)
                         bot.sendMessage(
                             chatId,
-                            getMessage(chatId, "selectModel"),
+                            getMessage(chatId, "selectAction"),
                             keyboard
                         )
                     } else {
