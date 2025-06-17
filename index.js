@@ -930,10 +930,9 @@ bot.on("message", async (msg) => {
             // More flexible text matching for mobile devices
             const modeText = text.trim()
             if (
-                modeText.includes("Ввести одно время") ||
-                modeText.includes("Enter single time") ||
-                modeText.includes("createFile") ||
-                modeText.includes("Создать файл")
+                modeText.includes("Создать файл") ||
+                modeText.includes("Create results file") ||
+                modeText.includes("createFile")
             ) {
                 userState.mode = getMessage(chatId, "createFile")
                 userState.state = STATES.WAITING_NAME
