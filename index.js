@@ -1363,6 +1363,8 @@ bot.on("message", async (msg) => {
                         // Send file using absolute path
                         await bot.sendDocument(chatId, files.excelFile, {
                             filename: `results_${currentSession.username}_${currentSession.chatId}.xlsx`,
+                            contentType:
+                                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         })
                         await bot.sendMessage(
                             chatId,
