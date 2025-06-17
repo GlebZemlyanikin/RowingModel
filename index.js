@@ -615,9 +615,16 @@ function avg(arr) {
 // Save result to session
 async function saveResult(chatId, result) {
     try {
-        const session = userSessions.get(chatId)
+        let session = userSessions.get(chatId)
+
+        // If session doesn't exist, create a new one
         if (!session) {
-            throw new Error("Session not found")
+            logger.warn(
+                `Session not found for chatId ${chatId}, creating new session`
+            )
+            const username = `User_${chatId}` // Default username if not available
+            initUserSession(chatId, username)
+            session = userSessions.get(chatId)
         }
 
         // Format time for display
@@ -1124,39 +1131,73 @@ bot.on("message", async (msg) => {
                     logger.info(`Sending response: ${response}`)
 
                     if (userState.mode === getMessage(chatId, "createFile")) {
-                        // Save result to database
-                        await saveResult(chatId, {
-                            name: userState.name,
-                            distance: userState.distance,
-                            boatClass: userState.boatClass,
-                            ageCategory: userState.ageCategory,
-                            time: totalSeconds,
-                            modelTime,
-                            percentage,
-                        })
+                        try {
+                            // Save result to database
+                            await saveResult(chatId, {
+                                name: userState.name,
+                                distance: userState.distance,
+                                boatClass: userState.boatClass,
+                                ageCategory: userState.ageCategory,
+                                time: totalSeconds,
+                                modelTime,
+                                percentage,
+                            })
 
-                        // Send confirmation
-                        bot.sendMessage(chatId, response)
+                            // Send confirmation
+                            bot.sendMessage(chatId, response)
 
-                        // Show next action menu instead of resetting state
-                        userState.state = STATES.WAITING_NEXT_ACTION
-                        const keyboard = {
-                            reply_markup: {
-                                keyboard: [
-                                    [getMessage(chatId, "enterMoreTime")],
-                                    [getMessage(chatId, "newName")],
-                                    [getMessage(chatId, "finishAndGetExcel")],
-                                    [getMessage(chatId, "editLastTime")],
-                                ],
-                                one_time_keyboard: true,
-                            },
+                            // Show next action menu instead of resetting state
+                            userState.state = STATES.WAITING_NEXT_ACTION
+                            const keyboard = {
+                                reply_markup: {
+                                    keyboard: [
+                                        [getMessage(chatId, "enterMoreTime")],
+                                        [getMessage(chatId, "newName")],
+                                        [
+                                            getMessage(
+                                                chatId,
+                                                "finishAndGetExcel"
+                                            ),
+                                        ],
+                                        [getMessage(chatId, "editLastTime")],
+                                    ],
+                                    one_time_keyboard: true,
+                                },
+                            }
+                            addCancelButton(keyboard)
+                            bot.sendMessage(
+                                chatId,
+                                getMessage(chatId, "selectAction"),
+                                keyboard
+                            )
+                        } catch (saveError) {
+                            logger.error(
+                                `Error saving result: ${saveError.message}`
+                            )
+                            // Still show the result to user, but don't save
+                            bot.sendMessage(chatId, response)
+                            bot.sendMessage(
+                                chatId,
+                                "Результат показан, но не сохранен из-за технической ошибки. Попробуйте еще раз."
+                            )
+
+                            // Reset state and show main menu
+                            initUserState(chatId)
+                            const keyboard = {
+                                reply_markup: {
+                                    keyboard: [
+                                        [getMessage(chatId, "worldModel")],
+                                        [getMessage(chatId, "russiaModel")],
+                                    ],
+                                    one_time_keyboard: true,
+                                },
+                            }
+                            bot.sendMessage(
+                                chatId,
+                                getMessage(chatId, "selectModel"),
+                                keyboard
+                            )
                         }
-                        addCancelButton(keyboard)
-                        bot.sendMessage(
-                            chatId,
-                            getMessage(chatId, "selectAction"),
-                            keyboard
-                        )
                     } else {
                         // For single time mode, just show the result
                         bot.sendMessage(chatId, response)
