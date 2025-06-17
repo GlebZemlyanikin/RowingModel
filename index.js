@@ -187,16 +187,18 @@ logger.info("Bot instance created")
 const userStates = new Map()
 logger.info("User states storage initialized")
 
-// Create necessary directories
+// Create necessary directories (optional for Railway)
 const dirs = ["sessions", "backups"]
 dirs.forEach((dir) => {
-    if (!fs.existsSync(dir)) {
-        try {
+    try {
+        if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true })
             logger.info(`Created directory: ${dir}`)
-        } catch (error) {
-            logger.error(`Error creating directory ${dir}: ${error.message}`)
         }
+    } catch (error) {
+        logger.warn(
+            `Could not create directory ${dir}: ${error.message}. Continuing without it.`
+        )
     }
 })
 
@@ -391,12 +393,18 @@ function logUserAction(chatId, action, details = {}) {
 
 // Save session to file
 function saveSession(chatId) {
-    const session = userSessions.get(chatId)
-    if (session) {
-        const filename = `sessions/${session.username}_${
-            session.chatId
-        }_${session.startTime.replace(/[:.]/g, "-")}.json`
-        fs.writeFileSync(filename, JSON.stringify(session, null, 2))
+    try {
+        const session = userSessions.get(chatId)
+        if (session) {
+            const filename = `sessions/${session.username}_${
+                session.chatId
+            }_${session.startTime.replace(/[:.]/g, "-")}.json`
+            fs.writeFileSync(filename, JSON.stringify(session, null, 2))
+        }
+    } catch (error) {
+        logger.warn(
+            `Could not save session for chatId ${chatId}: ${error.message}`
+        )
     }
 }
 
@@ -689,6 +697,14 @@ const BACKUP_INTERVAL = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
 // Backup functions
 async function createBackup() {
     try {
+        // Check if backup directory exists
+        if (!fs.existsSync(BACKUP_DIR)) {
+            logger.warn(
+                `Backup directory ${BACKUP_DIR} does not exist, skipping backup`
+            )
+            return
+        }
+
         const timestamp = new Date().toISOString().replace(/[:.]/g, "-")
         const backupData = {
             timestamp,
@@ -705,20 +721,26 @@ async function createBackup() {
         logger.info(`Backup created: ${backupFile}`)
 
         // Clean up old backups (keep last 7 days)
-        const files = await fs.promises.readdir(BACKUP_DIR)
-        const oldFiles = files.filter((file) => {
-            const filePath = `${BACKUP_DIR}/${file}`
-            const stats = fs.statSync(filePath)
-            const fileAge = Date.now() - stats.mtime.getTime()
-            return fileAge > 7 * 24 * 60 * 60 * 1000 // 7 days
-        })
+        try {
+            const files = await fs.promises.readdir(BACKUP_DIR)
+            const oldFiles = files.filter((file) => {
+                const filePath = `${BACKUP_DIR}/${file}`
+                const stats = fs.statSync(filePath)
+                const fileAge = Date.now() - stats.mtime.getTime()
+                return fileAge > 7 * 24 * 60 * 60 * 1000 // 7 days
+            })
 
-        for (const file of oldFiles) {
-            await fs.promises.unlink(`${BACKUP_DIR}/${file}`)
-            logger.info(`Old backup deleted: ${file}`)
+            for (const file of oldFiles) {
+                await fs.promises.unlink(`${BACKUP_DIR}/${file}`)
+                logger.info(`Old backup deleted: ${file}`)
+            }
+        } catch (cleanupError) {
+            logger.warn(
+                `Could not cleanup old backups: ${cleanupError.message}`
+            )
         }
     } catch (error) {
-        logger.error(`Error creating backup: ${error.message}`, error)
+        logger.warn(`Could not create backup: ${error.message}`)
     }
 }
 
@@ -762,8 +784,11 @@ bot.onText(/\/backup/, async (msg) => {
         await createBackup()
         bot.sendMessage(chatId, "Резервная копия данных создана")
     } catch (error) {
-        logger.error(`Error in backup command: ${error.message}`, error)
-        bot.sendMessage(chatId, "Ошибка при создании резервной копии")
+        logger.warn(`Could not create backup: ${error.message}`)
+        bot.sendMessage(
+            chatId,
+            "Резервная копия не создана (функция недоступна)"
+        )
     }
 })
 
@@ -771,6 +796,11 @@ bot.onText(/\/backup/, async (msg) => {
 bot.onText(/\/restore/, async (msg) => {
     const chatId = msg.chat.id
     try {
+        if (!fs.existsSync(BACKUP_DIR)) {
+            bot.sendMessage(chatId, "Резервные копии недоступны")
+            return
+        }
+
         const files = await fs.promises.readdir(BACKUP_DIR)
         if (files.length === 0) {
             bot.sendMessage(chatId, "Нет доступных резервных копий")
@@ -791,8 +821,8 @@ bot.onText(/\/restore/, async (msg) => {
             bot.sendMessage(chatId, "Ошибка при восстановлении данных")
         }
     } catch (error) {
-        logger.error(`Error in restore command: ${error.message}`, error)
-        bot.sendMessage(chatId, "Ошибка при восстановлении данных")
+        logger.warn(`Could not restore from backup: ${error.message}`)
+        bot.sendMessage(chatId, "Восстановление недоступно")
     }
 })
 
