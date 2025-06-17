@@ -1093,45 +1093,10 @@ bot.on("message", async (msg) => {
         case STATES.WAITING_TIME:
             logger.info(`Processing time input: ${text}`)
 
-            // Normalize time format (replace first dot with colon for MM.SS.ss format)
-            let normalizedTime = text
-            if (text.match(/^\d{1,2}\.\d{1,2}\.\d{1,2}$/)) {
-                normalizedTime = text.replace(
-                    /^(\d{1,2})\.(\d{1,2})\.(\d{1,2})$/,
-                    "$1:$2.$3"
-                )
-            }
-            logger.info(`Normalized time: ${normalizedTime}`)
+            // Use the parseTimeToSeconds function for consistent time parsing
+            const totalSeconds = parseTimeToSeconds(text)
 
-            // Check both MM:SS.ss and SS.ss formats
-            const timeMatch = normalizedTime.match(
-                /^(?:(\d{1,2}):)?(\d{1,2})(?:\.(\d{1,2}))?$/
-            )
-            logger.info(`Time match result:`, timeMatch)
-
-            if (timeMatch) {
-                const [, minutes, seconds, hundredths] = timeMatch
-                const totalSeconds =
-                    (minutes ? parseInt(minutes) * 60 : 0) +
-                    parseInt(seconds) +
-                    (hundredths ? parseInt(hundredths) / 100 : 0)
-
-                logger.info(`Parsed time components:`, {
-                    minutes,
-                    seconds,
-                    hundredths,
-                    totalSeconds,
-                })
-
-                if (parseInt(seconds) > 59) {
-                    bot.sendMessage(
-                        chatId,
-                        getMessage(chatId, "invalidSeconds")
-                    )
-                    return
-                }
-
-                userState.time = totalSeconds
+            if (totalSeconds > 0) {
                 logger.info(
                     `User ${username} entered time: ${text} (${totalSeconds} seconds)`
                 )
