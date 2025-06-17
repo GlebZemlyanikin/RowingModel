@@ -899,37 +899,47 @@ bot.on("message", async (msg) => {
             break
 
         case STATES.WAITING_MODE:
+            // More flexible text matching for mobile devices
+            const modeText = text.trim()
             if (
-                text === getMessage(chatId, "singleTime") ||
-                text === getMessage(chatId, "createFile")
+                modeText.includes("Ввести одно время") ||
+                modeText.includes("Enter single time") ||
+                modeText.includes("createFile") ||
+                modeText.includes("Создать файл")
             ) {
-                userState.mode = text
-                if (text === getMessage(chatId, "createFile")) {
-                    userState.state = STATES.WAITING_NAME
-                    logger.info(`User ${username} selected mode: ${text}`)
-                    logUserAction(chatId, "select_mode", { mode: text })
-                    bot.sendMessage(chatId, getMessage(chatId, "enterName"))
-                } else {
-                    userState.state = STATES.WAITING_AGE
-                    logger.info(`User ${username} selected mode: ${text}`)
-                    logUserAction(chatId, "select_mode", { mode: text })
+                userState.mode = getMessage(chatId, "createFile")
+                userState.state = STATES.WAITING_NAME
+                logger.info(`User ${username} selected mode: ${userState.mode}`)
+                logUserAction(chatId, "select_mode", { mode: userState.mode })
+                bot.sendMessage(chatId, getMessage(chatId, "enterName"))
+            } else if (
+                modeText.includes("Ввести одно время") ||
+                modeText.includes("Enter single time") ||
+                modeText.includes("singleTime")
+            ) {
+                userState.mode = getMessage(chatId, "singleTime")
+                userState.state = STATES.WAITING_AGE
+                logger.info(`User ${username} selected mode: ${userState.mode}`)
+                logUserAction(chatId, "select_mode", { mode: userState.mode })
 
-                    // Use translated keyboard for age categories
-                    const availableAgeCategories =
-                        userState.modelType === getMessage(chatId, "worldModel")
-                            ? worldAgeCategories
-                            : russiaAgeCategories
-                    const keyboard = getTranslatedKeyboard(
-                        chatId,
-                        availableAgeCategories
-                    )
-                    bot.sendMessage(
-                        chatId,
-                        getMessage(chatId, "selectAge"),
-                        keyboard
-                    )
-                }
+                // Use translated keyboard for age categories
+                const availableAgeCategories =
+                    userState.modelType === getMessage(chatId, "worldModel")
+                        ? worldAgeCategories
+                        : russiaAgeCategories
+                const keyboard = getTranslatedKeyboard(
+                    chatId,
+                    availableAgeCategories
+                )
+                bot.sendMessage(
+                    chatId,
+                    getMessage(chatId, "selectAge"),
+                    keyboard
+                )
             } else {
+                logger.warn(
+                    `Invalid mode selection: "${text}" from user ${username}`
+                )
                 bot.sendMessage(chatId, getMessage(chatId, "invalidMode"))
             }
             break
@@ -953,14 +963,18 @@ bot.on("message", async (msg) => {
             break
 
         case STATES.WAITING_AGE:
-            // Check if the text matches any translated age category
+            // More flexible text matching for age categories
+            const ageText = text.trim()
             const ageCategories =
                 userState.modelType === getMessage(chatId, "worldModel")
                     ? worldAgeCategories
                     : russiaAgeCategories
 
             const selectedCategory = ageCategories.find(
-                (cat) => getMessage(chatId, cat) === text
+                (cat) =>
+                    getMessage(chatId, cat) === ageText ||
+                    cat === ageText ||
+                    ageText.includes(cat)
             )
 
             if (selectedCategory) {
@@ -981,14 +995,21 @@ bot.on("message", async (msg) => {
                     keyboard
                 )
             } else {
+                logger.warn(
+                    `Invalid age category: "${text}" from user ${username}`
+                )
                 bot.sendMessage(chatId, getMessage(chatId, "invalidAge"))
             }
             break
 
         case STATES.WAITING_DISTANCE:
-            // Check if the text matches any translated distance
+            // More flexible text matching for distances
+            const distanceText = text.trim()
             const selectedDistance = distances.find(
-                (dist) => getMessage(chatId, dist) === text
+                (dist) =>
+                    getMessage(chatId, dist) === distanceText ||
+                    dist === distanceText ||
+                    distanceText.includes(dist)
             )
 
             if (selectedDistance) {
@@ -1009,14 +1030,19 @@ bot.on("message", async (msg) => {
                     keyboard
                 )
             } else {
+                logger.warn(`Invalid distance: "${text}" from user ${username}`)
                 bot.sendMessage(chatId, getMessage(chatId, "invalidDistance"))
             }
             break
 
         case STATES.WAITING_BOAT:
-            // Check if the text matches any translated boat class
+            // More flexible text matching for boat classes
+            const boatText = text.trim()
             const selectedBoat = boatClasses.find(
-                (boat) => getMessage(chatId, boat) === text
+                (boat) =>
+                    getMessage(chatId, boat) === boatText ||
+                    boat === boatText ||
+                    boatText.includes(boat)
             )
 
             if (selectedBoat) {
@@ -1030,6 +1056,9 @@ bot.on("message", async (msg) => {
 
                 bot.sendMessage(chatId, getMessage(chatId, "enterTime"))
             } else {
+                logger.warn(
+                    `Invalid boat class: "${text}" from user ${username}`
+                )
                 bot.sendMessage(chatId, getMessage(chatId, "invalidBoat"))
             }
             break
