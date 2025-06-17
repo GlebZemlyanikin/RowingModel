@@ -929,6 +929,39 @@ bot.on("message", async (msg) => {
         case STATES.WAITING_MODE:
             // More flexible text matching for mobile devices
             const modeText = text.trim()
+
+            // Check if user accidentally sent an age category
+            const allAgeCategories = [
+                ...worldAgeCategories,
+                ...russiaAgeCategories,
+            ]
+            const isAgeCategory = allAgeCategories.some(
+                (cat) =>
+                    modeText.includes(cat) ||
+                    getMessage(chatId, cat) === modeText
+            )
+
+            if (isAgeCategory) {
+                logger.warn(
+                    `User ${username} sent age category "${text}" in WAITING_MODE state, redirecting to age selection`
+                )
+                userState.state = STATES.WAITING_AGE
+                const availableAgeCategories =
+                    userState.modelType === getMessage(chatId, "worldModel")
+                        ? worldAgeCategories
+                        : russiaAgeCategories
+                const keyboard = getTranslatedKeyboard(
+                    chatId,
+                    availableAgeCategories
+                )
+                bot.sendMessage(
+                    chatId,
+                    getMessage(chatId, "selectAge"),
+                    keyboard
+                )
+                return
+            }
+
             if (
                 modeText.includes("Создать файл") ||
                 modeText.includes("Create results file") ||
@@ -967,7 +1000,22 @@ bot.on("message", async (msg) => {
                 logger.warn(
                     `Invalid mode selection: "${text}" from user ${username}`
                 )
-                bot.sendMessage(chatId, getMessage(chatId, "invalidMode"))
+                // Show the mode selection keyboard again
+                const keyboard = {
+                    reply_markup: {
+                        keyboard: [
+                            [getMessage(chatId, "singleTime")],
+                            [getMessage(chatId, "createFile")],
+                        ],
+                        one_time_keyboard: true,
+                    },
+                }
+                addCancelButton(keyboard)
+                bot.sendMessage(
+                    chatId,
+                    getMessage(chatId, "selectMode"),
+                    keyboard
+                )
             }
             break
 
