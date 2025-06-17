@@ -563,6 +563,8 @@ async function createExcelFile(chatId) {
 // Helper function to parse time string to seconds
 function parseTimeToSeconds(timeStr) {
     try {
+        logger.info(`Parsing time: "${timeStr}"`)
+
         // Handle format MM:SS.ss
         if (timeStr.includes(":")) {
             const [minutes, seconds] = timeStr.split(":").map(Number)
@@ -570,16 +572,42 @@ function parseTimeToSeconds(timeStr) {
                 logger.error(`Invalid time format: ${timeStr}`)
                 return 0
             }
-            return minutes * 60 + seconds
+            const result = minutes * 60 + seconds
+            logger.info(`Parsed MM:SS format: ${timeStr} -> ${result} seconds`)
+            return result
         }
 
-        // Handle format SS.ss
+        // Handle format MM.SS.ss (minutes.seconds.hundredths)
+        if (timeStr.split(".").length === 3) {
+            const parts = timeStr.split(".")
+            const minutes = parseInt(parts[0])
+            const seconds = parseFloat(parts[1] + "." + parts[2]) // Combine seconds and hundredths as decimal
+
+            if (isNaN(minutes) || isNaN(seconds)) {
+                logger.error(`Invalid MM.SS.ss format: ${timeStr}`)
+                return 0
+            }
+
+            const result = minutes * 60 + seconds
+            logger.info(
+                `Parsed MM.SS.ss format: ${timeStr} -> ${result} seconds`
+            )
+            return result
+        }
+
+        // Handle format SS.ss - normalize decimal places
         const seconds = parseFloat(timeStr)
         if (isNaN(seconds)) {
             logger.error(`Invalid time format: ${timeStr}`)
             return 0
         }
-        return seconds
+
+        // Round to 2 decimal places to ensure consistency
+        const normalizedSeconds = Math.round(seconds * 100) / 100
+        logger.info(
+            `Parsed SS.ss format: "${timeStr}" -> ${normalizedSeconds} seconds`
+        )
+        return normalizedSeconds
     } catch (error) {
         logger.error(`Error parsing time: ${timeStr}`, error)
         return 0
