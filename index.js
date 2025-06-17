@@ -250,7 +250,6 @@ const STATES = {
     WAITING_TIME: "WAITING_TIME",
     WAITING_NEXT_ACTION: "WAITING_NEXT_ACTION",
     EDITING_LAST_TIME: "EDITING_LAST_TIME",
-    VIEWING_HISTORY: "VIEWING_HISTORY",
 }
 
 // Cache configuration
@@ -1148,7 +1147,6 @@ bot.on("message", async (msg) => {
                                     [getMessage(chatId, "newName")],
                                     [getMessage(chatId, "finishAndGetExcel")],
                                     [getMessage(chatId, "editLastTime")],
-                                    [getMessage(chatId, "viewHistory")],
                                 ],
                                 one_time_keyboard: true,
                             },
@@ -1271,22 +1269,6 @@ bot.on("message", async (msg) => {
                 } else {
                     bot.sendMessage(chatId, getMessage(chatId, "noResults"))
                 }
-            } else if (text === getMessage(chatId, "viewHistory")) {
-                userState.state = STATES.VIEWING_HISTORY
-                const session = userSessions.get(chatId)
-                if (session && session.results.length > 0) {
-                    const history = session.results
-                        .map(
-                            (r, i) =>
-                                `${i + 1}. ${r.name} - ${r.time} (${
-                                    r.modelPercentage
-                                }%)`
-                        )
-                        .join("\n")
-                    bot.sendMessage(chatId, `История результатов:\n${history}`)
-                } else {
-                    bot.sendMessage(chatId, getMessage(chatId, "historyEmpty"))
-                }
             } else {
                 bot.sendMessage(chatId, getMessage(chatId, "invalidAction"))
             }
@@ -1308,7 +1290,6 @@ bot.on("message", async (msg) => {
                             [getMessage(chatId, "newName")],
                             [getMessage(chatId, "finishAndGetExcel")],
                             [getMessage(chatId, "editLastTime")],
-                            [getMessage(chatId, "viewHistory")],
                         ],
                         one_time_keyboard: true,
                     },
