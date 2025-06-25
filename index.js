@@ -1,8 +1,8 @@
 require("dotenv").config()
 const TelegramBot = require("node-telegram-bot-api")
 const express = require("express")
-const { getModelTime } = require("./modelTableWORLD")
-const { getModelTime: getModelTimeRU } = require("./modelTableRUSSIA")
+const { getModelTime, modelTimesWORLD } = require("./modelTableWORLD")
+const { getModelTime: getModelTimeRU, modelTimesRUSSIA } = require("./modelTableRUSSIA")
 const { distances, getDistance } = require("./distanceTable")
 const winston = require("winston")
 const fs = require("fs")
@@ -490,7 +490,16 @@ async function createExcelFile(chatId) {
             // Add times and models
             for (let i = 0; i < maxResults; i++) {
                 if (i < group.times.length) {
-                    rowData.push(group.times[i], `${group.models[i]}%`)
+                    // Пересчитать процент модели по формуле средней скорости
+                    let baseModelTime = null;
+                    if (group.ageCategory in modelTimesWORLD && group.boatClass in modelTimesWORLD[group.ageCategory]) {
+                        baseModelTime = modelTimesWORLD[group.ageCategory][group.boatClass];
+                    } else if (group.ageCategory in modelTimesRUSSIA && group.boatClass in modelTimesRUSSIA[group.ageCategory]) {
+                        baseModelTime = modelTimesRUSSIA[group.ageCategory][group.boatClass];
+                    }
+                    const userTime = parseTimeToSeconds(group.times[i]);
+                    const modelPercent = baseModelTime ? calculateModelPercentage(baseModelTime, group.distance, userTime).toFixed(2) : "";
+                    rowData.push(group.times[i], `${modelPercent}%`)
                 } else {
                     rowData.push("", "")
                 }
@@ -502,7 +511,14 @@ async function createExcelFile(chatId) {
                 logger.info(`Parsed time ${t} to ${seconds} seconds`)
                 return seconds
             })
-            const models = group.models
+            // Пересчитать средний процент модели по формуле средней скорости
+            let baseModelTime = null;
+            if (group.ageCategory in modelTimesWORLD && group.boatClass in modelTimesWORLD[group.ageCategory]) {
+                baseModelTime = modelTimesWORLD[group.ageCategory][group.boatClass];
+            } else if (group.ageCategory in modelTimesRUSSIA && group.boatClass in modelTimesRUSSIA[group.ageCategory]) {
+                baseModelTime = modelTimesRUSSIA[group.ageCategory][group.boatClass];
+            }
+            const models = times.map((userTime) => baseModelTime ? calculateModelPercentage(baseModelTime, group.distance, userTime) : 0);
 
             // Calculate average time
             const avgSeconds = avg(times)
@@ -666,18 +682,31 @@ async function saveResult(chatId, result) {
         // Format time for display
         const formattedTime = formatTime(result.time)
 
+        // Calculate model percentage for saving (по средней скорости)
+        let baseModelTime = null;
+        if (result.modelType === getMessage(chatId, "worldModel")) {
+            baseModelTime = modelTimesWORLD[result.ageCategory]?.[result.boatClass];
+        } else {
+            baseModelTime = modelTimesRUSSIA[result.ageCategory]?.[result.boatClass];
+        }
+        const modelPercentage = calculateModelPercentage(
+            baseModelTime,
+            result.distance,
+            typeof result.time === "number" ? result.time : parseTimeToSeconds(result.time)
+        ).toFixed(2);
+
         // Add result to session
         session.results.push({
             ...result,
             time: formattedTime,
-            modelPercentage: result.percentage,
+            modelPercentage: modelPercentage,
             timestamp: new Date().toISOString(),
         })
 
         logger.info(`Result saved for user ${session.username}:`, {
             name: result.name,
             time: formattedTime,
-            percentage: result.percentage,
+            percentage: modelPercentage,
         })
 
         // Save session to file
@@ -904,6 +933,14 @@ function getTranslatedKeyboard(chatId, items) {
             one_time_keyboard: true,
         },
     }
+}
+
+// Calculate model percentage based on average speed
+function calculateModelPercentage(baseModelTime, distance, userTime) {
+    if (!baseModelTime || !distance || !userTime) return 0;
+    const modelSpeed = 2000 / baseModelTime;
+    const userSpeed = distance / userTime;
+    return (userSpeed / modelSpeed) * 100;
 }
 
 // Message handler
@@ -1210,10 +1247,13 @@ bot.on("message", async (msg) => {
 
                     logger.info(`Model time calculated: ${modelTime}`)
 
-                    // Fix percentage calculation: model time / user time * 100
-                    const percentage = (
-                        (modelTime / totalSeconds) *
-                        100
+                    // Calculate model percentage based on average speed
+                    const percentage = calculateModelPercentage(
+                        userState.modelType === getMessage(chatId, "worldModel")
+                            ? modelTimesWORLD[userState.ageCategory]?.[userState.boatClass]
+                            : modelTimesRUSSIA[userState.ageCategory]?.[userState.boatClass],
+                        userState.distance,
+                        totalSeconds
                     ).toFixed(2)
                     logger.info(
                         `Model time calculation for ${username}: model=${modelTime}s, user=${totalSeconds}s, percentage=${percentage}%`
@@ -1422,7 +1462,15 @@ bot.on("message", async (msg) => {
             if (session && session.results.length > 0) {
                 session.results[session.results.length - 1].time = text
                 // Recalculate model percentage
-                // ... existing calculation code ...
+                const lastResult = session.results[session.results.length - 1];
+                let baseModelTime = null;
+                if (lastResult.modelType === getMessage(chatId, "worldModel")) {
+                    baseModelTime = modelTimesWORLD[lastResult.ageCategory]?.[lastResult.boatClass];
+                } else {
+                    baseModelTime = modelTimesRUSSIA[lastResult.ageCategory]?.[lastResult.boatClass];
+                }
+                const userTime = parseTimeToSeconds(text);
+                lastResult.modelPercentage = baseModelTime ? calculateModelPercentage(baseModelTime, lastResult.distance, userTime).toFixed(2) : "";
                 bot.sendMessage(chatId, getMessage(chatId, "timeUpdated"))
                 userState.state = STATES.WAITING_NEXT_ACTION
                 const keyboard = {
