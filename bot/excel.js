@@ -1,8 +1,8 @@
 const ExcelJS = require("exceljs");
 const path = require("path");
-const { parseTimeToSeconds, formatTime, avg, calculateModelPercentage } = require("./shared/utils");
-const { modelTimesWORLD } = require("./shared/modelTableWORLD");
-const { modelTimesRUSSIA } = require("./shared/modelTableRUSSIA");
+const { parseTimeToSeconds, formatTime, avg, calculateModelPercentage } = require("../shared/utils");
+const { modelTimesWORLD } = require("../shared/modelTableWORLD");
+const { modelTimesRUSSIA } = require("../shared/modelTableRUSSIA");
 
 // Функция создания Excel-файла
 async function createExcelFile(chatId, session, getMessage) {
