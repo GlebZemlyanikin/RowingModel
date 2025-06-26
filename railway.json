@@ -5,7 +5,11 @@
       "root": "bot",
       "buildCommand": "",
       "startCommand": "node index.js",
-      "installCommand": "npm install"
+      "installCommand": "npm install",
+      "watchPaths": [
+        "bot/**",
+        "shared/**"
+      ]
     },
     {
       "name": "web",
@@ -13,7 +17,11 @@
       "buildCommand": "npm run build",
       "startCommand": "npx serve -s dist",
       "installCommand": "npm install",
-      "port": 8080
+      "port": 8080,
+      "watchPaths": [
+        "web/**",
+        "shared/**"
+      ]
     }
   ]
 } 
