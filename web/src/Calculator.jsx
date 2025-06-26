@@ -162,7 +162,7 @@ export default function Calculator() {
       category: Object.keys(currentModel)[0],
       boat: Object.keys(currentModel[Object.keys(currentModel)[0]])[0],
     })));
-  }, [modelType]);
+  }, [currentModel]);
 
   const handleAthleteChange = (idx, field, value) => {
     setAthletes(athletes => athletes.map((ath, i) => {
