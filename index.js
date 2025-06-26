@@ -1136,15 +1136,20 @@ bot.on("message", async (msg) => {
                     distanceText.includes(dist)
             )
 
+            logger.info(`DEBUG: User input for distance: '${text}', selectedDistance: '${selectedDistance}'`)
+
             if (selectedDistance) {
                 // Store original (untranslated) value
-                userState.distance = getDistance(selectedDistance)
+                const parsedDistance = getDistance(selectedDistance)
+                logger.info(`DEBUG: getDistance('${selectedDistance}') = ${parsedDistance}`)
+                userState.distance = parsedDistance
                 userState.state = STATES.WAITING_BOAT
                 logger.info(
-                    `User ${username} selected distance: ${selectedDistance}`
+                    `User ${username} selected distance: ${selectedDistance} (parsed: ${parsedDistance})`
                 )
                 logUserAction(chatId, "select_distance", {
                     distance: selectedDistance,
+                    parsedDistance,
                 })
 
                 const keyboard = getTranslatedKeyboard(chatId, boatClasses)
