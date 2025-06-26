@@ -1229,14 +1229,18 @@ bot.on("message", async (msg) => {
 
                     logger.info(`Model time calculated: ${modelTime}`)
 
+                    // Get base model time for 2000m for correct percentage calculation
+                    const baseModelTime = userState.modelType === getMessage(chatId, "worldModel")
+                            ? modelTimesWORLD[userState.ageCategory]?.[userState.boatClass]
+                            : modelTimesRUSSIA[userState.ageCategory]?.[userState.boatClass];
+                    
                     // Calculate model percentage based on average speed
                     const percentage = calculateModelPercentage(
-                        userState.modelType === getMessage(chatId, "worldModel")
-                            ? modelTimesWORLD[userState.ageCategory]?.[userState.boatClass]
-                            : modelTimesRUSSIA[userState.ageCategory]?.[userState.boatClass],
+                        baseModelTime,
                         userState.distance,
                         totalSeconds
                     ).toFixed(2)
+
                     logger.info(
                         `Model time calculation for ${username}: model=${modelTime}s, user=${totalSeconds}s, percentage=${percentage}%`
                     )
