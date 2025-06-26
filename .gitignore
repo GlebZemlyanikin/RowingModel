@@ -11,6 +11,9 @@
 !README.md
 !.gitignore
 !render.yaml
+!utils.js
+!excel.js
+!backup.js
 
 # Игнорировать все файлы в директориях
 */
