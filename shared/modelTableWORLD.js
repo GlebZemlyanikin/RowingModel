@@ -1,4 +1,4 @@
-export const modelTimesWORLD = {
+const modelTimesWORLD = {
     Мужчина: {
         "1х": 390.74, // Одиночка
         "1х л/в": 401.03, // Одиночка легкий вес
@@ -98,4 +98,6 @@ function getModelTime(ageCategory, distance, boatClass, actualTime) {
 
     return modelTime
 }
+
+module.exports = { modelTimesWORLD, getModelTime };
 
