@@ -1,6 +1,6 @@
 // Вспомогательные функции для работы с временем и расчетами
 
-export function parseTimeToSeconds(timeStr) {
+function parseTimeToSeconds(timeStr) {
     try {
         // Handle format MM:SS.ss
         if (timeStr.includes(":")) {
@@ -31,7 +31,7 @@ export function parseTimeToSeconds(timeStr) {
     }
 }
 
-export function formatTime(seconds) {
+function formatTime(seconds) {
     try {
         const minutes = Math.floor(seconds / 60)
         const remainingSeconds = (seconds % 60).toFixed(2)
@@ -41,7 +41,7 @@ export function formatTime(seconds) {
     }
 }
 
-export function avg(arr) {
+function avg(arr) {
     try {
         if (!arr || arr.length === 0) return 0
         return arr.reduce((a, b) => a + b, 0) / arr.length
@@ -50,9 +50,11 @@ export function avg(arr) {
     }
 }
 
-export function calculateModelPercentage(baseModelTime, distance, userTime) {
+function calculateModelPercentage(baseModelTime, distance, userTime) {
     if (!baseModelTime || !distance || !userTime) return 0;
     const modelSpeed = 2000 / baseModelTime;
     const userSpeed = distance / userTime;
     return (userSpeed / modelSpeed) * 100;
-} 
+}
+
+module.exports = { parseTimeToSeconds, formatTime, avg, calculateModelPercentage }; 
