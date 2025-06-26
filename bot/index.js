@@ -1,14 +1,14 @@
 require("dotenv").config()
 const TelegramBot = require("node-telegram-bot-api")
 const express = require("express")
-const { getModelTime, modelTimesWORLD } = require("./modelTableWORLD")
-const { getModelTime: getModelTimeRU, modelTimesRUSSIA } = require("./modelTableRUSSIA")
-const { distances, getDistance } = require("./distanceTable")
+const { getModelTime, modelTimesWORLD } = require("./shared/modelTableWORLD")
+const { getModelTime: getModelTimeRU, modelTimesRUSSIA } = require("./shared/modelTableRUSSIA")
+const { distances, getDistance } = require("./shared/distanceTable")
 const winston = require("winston")
 const fs = require("fs")
 const ExcelJS = require("exceljs")
 const path = require("path")
-const { parseTimeToSeconds, formatTime, avg, calculateModelPercentage } = require("./utils")
+const { parseTimeToSeconds, formatTime, avg, calculateModelPercentage } = require("./shared/utils")
 const { createExcelFile } = require("./excel")
 const { createBackup, restoreFromBackup, BACKUP_DIR, BACKUP_INTERVAL } = require("./backup")
 
@@ -1152,3 +1152,21 @@ bot.on("message", async (msg) => {
             break
     }
 })
+
+const WEB_URL = 'https://yourproject.up.railway.app'; // Замените на реальный адрес после деплоя
+
+// Команда /web
+bot.onText(/\/web/, (msg) => {
+    bot.sendMessage(msg.chat.id, `Веб-версия калькулятора: ${WEB_URL}`);
+});
+
+// Кнопка в /start
+bot.onText(/\/start/, (msg) => {
+    bot.sendMessage(msg.chat.id, 'Добро пожаловать! Выберите действие:', {
+        reply_markup: {
+            inline_keyboard: [
+                [{ text: 'Открыть веб-калькулятор', url: WEB_URL }]
+            ]
+        }
+    });
+});
