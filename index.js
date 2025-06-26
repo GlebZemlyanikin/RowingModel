@@ -448,14 +448,11 @@ async function createExcelFile(chatId) {
                     distance: result.distance,
                     boatClass: result.boatClass,
                     ageCategory: result.ageCategory,
+                    modelType: result.modelType,
                     times: [],
-                    models: [],
                 }
             }
             groupedResults[result.name].times.push(result.time)
-            groupedResults[result.name].models.push(
-                parseFloat(result.modelPercentage)
-            )
         })
         logger.info(
             `Grouped results for ${Object.keys(groupedResults).length} athletes`
@@ -490,13 +487,9 @@ async function createExcelFile(chatId) {
             // Add times and models
             for (let i = 0; i < maxResults; i++) {
                 if (i < group.times.length) {
-                    // Пересчитать процент модели по формуле средней скорости
-                    let baseModelTime = null;
-                    if (group.ageCategory in modelTimesWORLD && group.boatClass in modelTimesWORLD[group.ageCategory]) {
-                        baseModelTime = modelTimesWORLD[group.ageCategory][group.boatClass];
-                    } else if (group.ageCategory in modelTimesRUSSIA && group.boatClass in modelTimesRUSSIA[group.ageCategory]) {
-                        baseModelTime = modelTimesRUSSIA[group.ageCategory][group.boatClass];
-                    }
+                    // Recalculate model percentage using the correct modelType
+                    const modelTable = group.modelType === getMessage(chatId, "worldModel") ? modelTimesWORLD : modelTimesRUSSIA;
+                    const baseModelTime = modelTable[group.ageCategory]?.[group.boatClass];
                     const userTime = parseTimeToSeconds(group.times[i]);
                     const modelPercent = baseModelTime ? calculateModelPercentage(baseModelTime, group.distance, userTime).toFixed(2) : "";
                     rowData.push(group.times[i], `${modelPercent}%`)
@@ -511,13 +504,10 @@ async function createExcelFile(chatId) {
                 logger.info(`Parsed time ${t} to ${seconds} seconds`)
                 return seconds
             })
-            // Пересчитать средний процент модели по формуле средней скорости
-            let baseModelTime = null;
-            if (group.ageCategory in modelTimesWORLD && group.boatClass in modelTimesWORLD[group.ageCategory]) {
-                baseModelTime = modelTimesWORLD[group.ageCategory][group.boatClass];
-            } else if (group.ageCategory in modelTimesRUSSIA && group.boatClass in modelTimesRUSSIA[group.ageCategory]) {
-                baseModelTime = modelTimesRUSSIA[group.ageCategory][group.boatClass];
-            }
+            
+            // Recalculate average model percentage using the correct modelType
+            const modelTable = group.modelType === getMessage(chatId, "worldModel") ? modelTimesWORLD : modelTimesRUSSIA;
+            const baseModelTime = modelTable[group.ageCategory]?.[group.boatClass];
             const models = times.map((userTime) => baseModelTime ? calculateModelPercentage(baseModelTime, group.distance, userTime) : 0);
 
             // Calculate average time
@@ -682,31 +672,23 @@ async function saveResult(chatId, result) {
         // Format time for display
         const formattedTime = formatTime(result.time)
 
-        // Calculate model percentage for saving (по средней скорости)
-        let baseModelTime = null;
-        if (result.modelType === getMessage(chatId, "worldModel")) {
-            baseModelTime = modelTimesWORLD[result.ageCategory]?.[result.boatClass];
-        } else {
-            baseModelTime = modelTimesRUSSIA[result.ageCategory]?.[result.boatClass];
-        }
-        const modelPercentage = calculateModelPercentage(
-            baseModelTime,
-            result.distance,
-            typeof result.time === "number" ? result.time : parseTimeToSeconds(result.time)
-        ).toFixed(2);
-
-        // Add result to session
+        // Add result to session, ensuring modelType is saved
         session.results.push({
-            ...result,
+            name: result.name,
+            distance: result.distance,
+            boatClass: result.boatClass,
+            ageCategory: result.ageCategory,
             time: formattedTime,
-            modelPercentage: modelPercentage,
+            modelTime: result.modelTime,
+            modelPercentage: result.percentage,
+            modelType: result.modelType, // Explicitly save modelType
             timestamp: new Date().toISOString(),
         })
 
         logger.info(`Result saved for user ${session.username}:`, {
             name: result.name,
             time: formattedTime,
-            percentage: modelPercentage,
+            percentage: result.percentage,
         })
 
         // Save session to file
@@ -1280,6 +1262,7 @@ bot.on("message", async (msg) => {
                                 time: totalSeconds,
                                 modelTime,
                                 percentage,
+                                modelType: userState.modelType,
                             })
 
                             // Send confirmation
@@ -1460,32 +1443,39 @@ bot.on("message", async (msg) => {
             // Handle time editing similar to WAITING_TIME state
             const session = userSessions.get(chatId)
             if (session && session.results.length > 0) {
-                session.results[session.results.length - 1].time = text
-                // Recalculate model percentage
-                const lastResult = session.results[session.results.length - 1];
-                let baseModelTime = null;
-                if (lastResult.modelType === getMessage(chatId, "worldModel")) {
-                    baseModelTime = modelTimesWORLD[lastResult.ageCategory]?.[lastResult.boatClass];
+                const lastResult = session.results[session.results.length - 1]
+                const newTimeSeconds = parseTimeToSeconds(text)
+
+                if (newTimeSeconds > 0) {
+                    // Use the result's modelType for correct recalculation
+                    const modelTable = lastResult.modelType === getMessage(chatId, "worldModel") ? modelTimesWORLD : modelTimesRUSSIA;
+                    const baseModelTime = modelTable[lastResult.ageCategory]?.[lastResult.boatClass];
+                    
+                    const newPercentage = baseModelTime ? calculateModelPercentage(baseModelTime, lastResult.distance, newTimeSeconds).toFixed(2) : "0.00";
+
+                    lastResult.time = formatTime(newTimeSeconds)
+                    lastResult.modelPercentage = newPercentage
+
+                    bot.sendMessage(chatId, getMessage(chatId, "timeUpdated"))
+                    userState.state = STATES.WAITING_NEXT_ACTION
+                    const keyboard = {
+                        reply_markup: {
+                            keyboard: [
+                                [getMessage(chatId, "enterMoreTime")],
+                                [getMessage(chatId, "newName")],
+                                [getMessage(chatId, "finishAndGetExcel")],
+                                [getMessage(chatId, "editLastTime")],
+                            ],
+                            one_time_keyboard: true,
+                        },
+                    }
+                    addCancelButton(keyboard)
+                    bot.sendMessage(chatId, "Выберите действие:", keyboard)
                 } else {
-                    baseModelTime = modelTimesRUSSIA[lastResult.ageCategory]?.[lastResult.boatClass];
+                    bot.sendMessage(chatId, getMessage(chatId, "invalidTime"))
                 }
-                const userTime = parseTimeToSeconds(text);
-                lastResult.modelPercentage = baseModelTime ? calculateModelPercentage(baseModelTime, lastResult.distance, userTime).toFixed(2) : "";
-                bot.sendMessage(chatId, getMessage(chatId, "timeUpdated"))
-                userState.state = STATES.WAITING_NEXT_ACTION
-                const keyboard = {
-                    reply_markup: {
-                        keyboard: [
-                            [getMessage(chatId, "enterMoreTime")],
-                            [getMessage(chatId, "newName")],
-                            [getMessage(chatId, "finishAndGetExcel")],
-                            [getMessage(chatId, "editLastTime")],
-                        ],
-                        one_time_keyboard: true,
-                    },
-                }
-                addCancelButton(keyboard)
-                bot.sendMessage(chatId, "Выберите действие:", keyboard)
+            } else {
+                bot.sendMessage(chatId, getMessage(chatId, "noResults"))
             }
             break
     }
