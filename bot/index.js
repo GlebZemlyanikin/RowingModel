@@ -1149,7 +1149,7 @@ bot.on("message", async (msg) => {
     }
 })
 
-const WEB_URL = 'https://yourproject.up.railway.app'; // Замените на реальный адрес после деплоя
+const WEB_URL = 'https://railway.com?referralCode=YIEb3o'; // Замените на реальный адрес после деплоя
 
 // Команда /web
 bot.onText(/\/web/, (msg) => {
