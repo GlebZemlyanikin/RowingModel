@@ -1,4 +1,4 @@
-const distances = [
+export const distances = [
     "250м",
     "500м",
     "750м",
@@ -10,8 +10,6 @@ const distances = [
     "2500м",
 ]
 
-function getDistance(distanceStr) {
+export function getDistance(distanceStr) {
     return parseInt(distanceStr.replace("м", ""))
 }
-
-module.exports = { distances, getDistance };
