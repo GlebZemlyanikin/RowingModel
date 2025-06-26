@@ -14,6 +14,7 @@
 !utils.js
 !excel.js
 !backup.js
+!railway.json
 
 # Разрешить рабочие директории и их содержимое
 !web/

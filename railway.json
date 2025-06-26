@@ -1,0 +1,19 @@
+{
+  "services": [
+    {
+      "name": "bot",
+      "root": "bot",
+      "buildCommand": "",
+      "startCommand": "node index.js",
+      "installCommand": "npm install"
+    },
+    {
+      "name": "web",
+      "root": "web",
+      "buildCommand": "npm run build",
+      "startCommand": "npx serve -s dist",
+      "installCommand": "npm install",
+      "port": 8080
+    }
+  ]
+} 
