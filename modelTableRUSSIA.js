@@ -122,7 +122,10 @@ function getModelTime(ageCategory, distance, boatClass, actualTime) {
     }
 
     const baseModelTime = modelTimesRUSSIA[modelCategory][boatClass]
-    const modelTime = baseModelTime * (distance / 2000)
+    
+    // Recalculate model time based on average speed
+    const modelSpeed = 2000 / baseModelTime;
+    const modelTime = distance / modelSpeed;
 
     return modelTime
 }
@@ -131,3 +134,4 @@ module.exports = {
     getModelTime,
     modelTimesRUSSIA,
 }
+
