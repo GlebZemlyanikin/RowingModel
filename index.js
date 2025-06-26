@@ -1132,14 +1132,12 @@ bot.on("message", async (msg) => {
             const selectedDistance = distances.find(
                 (dist) =>
                     getMessage(chatId, dist) === distanceText ||
-                    dist === distanceText ||
-                    distanceText.includes(dist)
+                    dist === distanceText
             )
 
             logger.info(`DEBUG: User input for distance: '${text}', selectedDistance: '${selectedDistance}'`)
 
             if (selectedDistance) {
-                // Store original (untranslated) value
                 const parsedDistance = getDistance(selectedDistance)
                 logger.info(`DEBUG: getDistance('${selectedDistance}') = ${parsedDistance}`)
                 userState.distance = parsedDistance
@@ -1159,7 +1157,7 @@ bot.on("message", async (msg) => {
                     keyboard
                 )
             } else {
-                logger.warn(`Invalid distance: "${text}" from user ${username}`)
+                logger.warn(`Invalid distance: \"${text}\" from user ${username}`)
                 bot.sendMessage(chatId, getMessage(chatId, "invalidDistance"))
             }
             break
