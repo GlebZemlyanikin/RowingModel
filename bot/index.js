@@ -1048,13 +1048,9 @@ bot.on("message", async (msg) => {
                 bot.sendMessage(chatId, "Введите имя или фамилию:")
             } else if (text === getMessage(chatId, "finishAndGetExcel")) {
                 try {
-                    const files = await createExcelFile(chatId)
+                    const currentSession = userSessions.get(chatId);
+                    const files = await createExcelFile(chatId, currentSession, getMessage);
                     if (files) {
-                        const currentSession = userSessions.get(chatId)
-                        if (!currentSession) {
-                            throw new Error("Session not found")
-                        }
-
                         // Send file using absolute path
                         await bot.sendDocument(chatId, files.excelFile, {
                             filename: `results_${currentSession.username}_${currentSession.chatId}.xlsx`,
